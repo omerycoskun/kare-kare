@@ -39,6 +39,8 @@ workflows:
       app_store_connect: codemagic   # Codemagic'teki ASC entegrasyon adı
     environment:
       flutter: stable
+      groups:
+        - ios_signing   # Codemagic'te CERTIFICATE_PRIVATE_KEY içeren grup
       vars:
         BUNDLE_ID: "com.karekare.karekare"
     scripts:
@@ -46,14 +48,12 @@ workflows:
         script: flutter config --no-enable-swift-package-manager
       - name: Flutter paketleri
         script: flutter packages pub get
-      - name: Kod imzalama (sertifika + profil otomatik oluştur)
+      - name: Kod imzalama (kalıcı anahtarla sertifika + profil)
         script: |
           keychain initialize
-          # Dağıtım sertifikası yoksa oluştur (varsa/limitte ise atla)
-          app-store-connect create-certificate --type IOS_DISTRIBUTION --save \
-            || echo "Sertifika zaten var ya da limitte, devam ediliyor"
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
           xcode-project use-profiles
