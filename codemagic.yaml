@@ -1,0 +1,59 @@
+# Codemagic CI/CD — Kare Kare
+# Android AAB + APK üretir (imzalı). iOS workflow hazır ama Apple kimlik
+# doğrulaması onaylanınca aktifleştirilecek (App Store Connect entegrasyonu).
+
+workflows:
+  android-release:
+    name: Android Release (AAB + APK)
+    instance_type: mac_mini_m2   # ücretsiz plan uyumlu
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      android_signing:
+        - kare_kare_upload        # Codemagic'te oluşturulacak keystore referansı
+      vars:
+        PACKAGE_NAME: "com.karekare.karekare"
+    scripts:
+      - name: Flutter paketleri
+        script: flutter packages pub get
+      - name: Testler
+        script: flutter test
+      - name: AAB (Play Store)
+        script: flutter build appbundle --release
+      - name: APK (telefon testi)
+        script: flutter build apk --release
+    artifacts:
+      - build/**/outputs/bundle/**/*.aab
+      - build/**/outputs/apk/**/*.apk
+      - build/**/outputs/**/mapping.txt
+    # publishing:
+    #   google_play:
+    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #     track: internal
+
+  ios-release:
+    name: iOS Release (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic   # Codemagic'teki ASC entegrasyon adı ("codemagic" koy)
+    environment:
+      flutter: stable
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.karekare.karekare
+    scripts:
+      - name: Flutter paketleri
+        script: flutter packages pub get
+      - name: CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: İmza profillerini uygula
+        script: xcode-project use-profiles
+      - name: IPA build
+        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
