@@ -49,6 +49,9 @@ workflows:
       - name: Kod imzalama (sertifika + profil otomatik oluştur)
         script: |
           keychain initialize
+          # Dağıtım sertifikası yoksa oluştur (varsa/limitte ise atla)
+          app-store-connect create-certificate --type IOS_DISTRIBUTION --save \
+            || echo "Sertifika zaten var ya da limitte, devam ediliyor"
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
