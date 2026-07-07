@@ -42,10 +42,10 @@ workflows:
       vars:
         BUNDLE_ID: "com.karekare.karekare"
     scripts:
+      - name: Swift Package Manager'ı kapat (CocoaPods'a zorla)
+        script: flutter config --no-enable-swift-package-manager
       - name: Flutter paketleri
         script: flutter packages pub get
-      - name: CocoaPods
-        script: find . -name "Podfile" -execdir pod install \;
       - name: Kod imzalama (sertifika + profil otomatik oluştur)
         script: |
           keychain initialize
