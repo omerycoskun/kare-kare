@@ -64,18 +64,28 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// "Reklam izle & devam et": tahtayı temizler, skoru korur, oyunu sürdürür.
+  /// "Reklam izle & devam et": tahtaya DOKUNMAZ, skoru korur; sadece son eldeki
+  /// (sığmayan) parçaları yenileriyle değiştirir → kaldığın yerden devam.
   void continueGame() {
-    grid = List.generate(kGridSize, (_) => List.filled(kGridSize, null));
     gameOver = false;
     usedContinue = true;
     combo = 0;
     lastMessage = null;
     lastPlaced = [];
     lastCleared = {};
-    _refillTray();
+    _refillPlayableTray();
     animTick++;
     notifyListeners();
+  }
+
+  /// Yeni 3 parça üretir; hiçbiri sığmıyorsa ilkini tek hücrelik yapar (boş
+  /// hücre olduğu sürece sığar) → "devam et" her zaman oynanabilir olur.
+  void _refillPlayableTray() {
+    tray = List.generate(3, (_) => _randomPiece());
+    if (!tray.whereType<Piece>().any(_canPlaceAnywhere)) {
+      tray[0] =
+          Piece(kShapes[0], kPieceColors[_rng.nextInt(kPieceColors.length)]);
+    }
   }
 
   void _refillTray() {
