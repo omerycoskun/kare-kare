@@ -9,7 +9,7 @@
 		<key>CFBundleDisplayName</key>
 		<string>Kare Kare</string>
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<string>ca-app-pub-1630797078588417~3035293222</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>

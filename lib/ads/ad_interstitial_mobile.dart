@@ -12,8 +12,8 @@ class AdInterstitial {
   bool _loading = false;
 
   static String get _unitId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/1033173712' // Android test interstitial
-      : 'ca-app-pub-3940256099942544/4411468910'; // iOS test interstitial
+      ? 'ca-app-pub-3940256099942544/1033173712' // Android test interstitial (Android beklemede)
+      : 'ca-app-pub-1630797078588417/2909346314'; // iOS GERÇEK geçiş reklamı
 
   void preload() => _load();
 
