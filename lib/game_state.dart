@@ -26,6 +26,15 @@ class GameState extends ChangeNotifier {
   /// Her hamlede artar; board animasyonu bunu izleyip tetiklenir.
   int animTick = 0;
 
+  /// Ardışık patlatma serisi (her patlatan hamlede artar, patlamayınca sıfırlanır).
+  int combo = 0;
+
+  /// Son hamlede gösterilecek motive edici mesaj (KOMBO x2, SÜPER! vb.), yoksa null.
+  String? lastMessage;
+
+  /// Bu oyunda "reklam izle & devam et" hakkı kullanıldı mı (oyun başına 1).
+  bool usedContinue = false;
+
   final Random _rng = Random();
   SharedPreferences? _prefs;
   final bool _persist;
@@ -46,9 +55,26 @@ class GameState extends ChangeNotifier {
     grid = List.generate(kGridSize, (_) => List.filled(kGridSize, null));
     score = 0;
     gameOver = false;
+    combo = 0;
+    lastMessage = null;
+    usedContinue = false;
     lastPlaced = [];
     lastCleared = {};
     _refillTray();
+    notifyListeners();
+  }
+
+  /// "Reklam izle & devam et": tahtayı temizler, skoru korur, oyunu sürdürür.
+  void continueGame() {
+    grid = List.generate(kGridSize, (_) => List.filled(kGridSize, null));
+    gameOver = false;
+    usedContinue = true;
+    combo = 0;
+    lastMessage = null;
+    lastPlaced = [];
+    lastCleared = {};
+    _refillTray();
+    animTick++;
     notifyListeners();
   }
 
@@ -116,8 +142,17 @@ class GameState extends ChangeNotifier {
     // Yuvadan çıkar
     tray[trayIndex] = null;
 
-    // Dolan satır/sütunları patlat
-    _clearLines();
+    // Dolan satır/sütunları patlat (kombo serisi + motive edici mesaj)
+    final lines = _clearLines();
+    if (lines > 0) {
+      combo++;
+      // Kombo çarpanı: ardışık patlatmada skor giderek artar
+      score += 10 * lines * lines * combo;
+      lastMessage = _messageFor(lines, combo);
+    } else {
+      combo = 0;
+      lastMessage = null;
+    }
 
     // Tüm yuvalar boşaldıysa yeni bloklar
     if (tray.every((p) => p == null)) {
@@ -138,7 +173,16 @@ class GameState extends ChangeNotifier {
     return true;
   }
 
-  void _clearLines() {
+  /// Motive edici mesaj: kombo varsa onu, yoksa temizlenen satır sayısına göre.
+  String _messageFor(int lines, int combo) {
+    if (combo >= 2) return 'KOMBO x$combo!';
+    if (lines >= 3) return 'İNANILMAZ!';
+    if (lines == 2) return 'SÜPER!';
+    return 'GÜZEL!';
+  }
+
+  /// Dolan satır/sütunları temizler; temizlenen toplam satır sayısını döndürür.
+  int _clearLines() {
     final fullRows = <int>[];
     final fullCols = <int>[];
 
@@ -154,7 +198,7 @@ class GameState extends ChangeNotifier {
     }
 
     final totalLines = fullRows.length + fullCols.length;
-    if (totalLines == 0) return;
+    if (totalLines == 0) return 0;
 
     // Patlayan hücreleri renkleriyle kaydet (efekt için), sonra temizle
     for (final r in fullRows) {
@@ -170,8 +214,7 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    // Skor: satır başına 10 puan, aynı anda çok satır = kombo çarpanı
-    score += 10 * totalLines * totalLines;
+    return totalLines;
   }
 
   void _checkGameOver() {

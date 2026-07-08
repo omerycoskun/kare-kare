@@ -4,6 +4,7 @@ import 'piece_widget.dart';
 import 'board_widget.dart';
 import 'ads/ad_banner.dart';
 import 'ads/ad_interstitial.dart';
+import 'ads/ad_rewarded.dart';
 import 'sound_service.dart';
 
 class GameScreen extends StatefulWidget {
@@ -13,35 +14,61 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen>
+    with SingleTickerProviderStateMixin {
   final GameState game = GameState();
   int _prevTick = 0;
   bool _prevOver = false;
+  bool _watchingAd = false;
+
+  // Kombo / motive edici yazı animasyonu
+  late final AnimationController _comboAnim;
+  String? _comboText;
 
   @override
   void initState() {
     super.initState();
+    _comboAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
     game.addListener(_onGameChange);
   }
 
   @override
   void dispose() {
     game.removeListener(_onGameChange);
+    _comboAnim.dispose();
     super.dispose();
   }
 
-  /// Oyun olaylarına göre ses çal (game_state saf tutuldu, ses UI'da).
+  /// Oyun olaylarına göre ses + kombo yazısı (game_state saf, efektler UI'da).
   void _onGameChange() {
     if (game.animTick != _prevTick) {
       _prevTick = game.animTick;
       SoundService.instance.place();
       if (game.lastCleared.isNotEmpty) SoundService.instance.clear();
+      if (game.lastMessage != null) {
+        _comboText = game.lastMessage;
+        _comboAnim.forward(from: 0);
+      }
     }
     if (game.gameOver && !_prevOver) {
       SoundService.instance.gameOver();
-      AdInterstitial.instance.notifyGameOver(); // her 3. oyun sonunda reklam
+      AdInterstitial.instance.notifyGameOver(); // her 2. oyun sonunda reklam
     }
     _prevOver = game.gameOver;
+  }
+
+  bool get _canContinue => !game.usedContinue && AdRewarded.instance.isReady;
+
+  Future<void> _watchAndContinue() async {
+    if (_watchingAd) return;
+    setState(() => _watchingAd = true);
+    final ok = await AdRewarded.instance.showContinue();
+    if (!mounted) return;
+    setState(() => _watchingAd = false);
+    if (ok) game.continueGame();
   }
 
   @override
@@ -60,10 +87,6 @@ class _GameScreenState extends State<GameScreen> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Tahta boyutunu hem genişliğe hem kullanılabilir yüksekliğe göre
-              // sınırla; böylece küçük ekranlarda taşmaz.
-              // Toplam ≈ başlık(150) + tahta*1.2 (alt algılama payı) +
-              //          tray(tahta*0.425) + banner(~62) + kenar(40)
               final byHeight = (constraints.maxHeight - 252) / 1.625;
               final boardSize =
                   [width - 32, byHeight, 480.0].reduce((a, b) => a < b ? a : b)
@@ -92,6 +115,7 @@ class _GameScreenState extends State<GameScreen> {
                           const AdBanner(),
                         ],
                       ),
+                      _comboOverlay(),
                       if (game.gameOver) _gameOverOverlay(),
                     ],
                   );
@@ -197,35 +221,105 @@ class _GameScreenState extends State<GameScreen> {
       child: Row(
         children: [
           for (int i = 0; i < game.tray.length; i++)
-            Expanded(child: Center(child: _traySlot(i, cellSize, trayCell))),
+            Expanded(child: _traySlot(i, cellSize, trayCell)),
         ],
       ),
     );
   }
 
+  /// Her yuva, tüm alanı sürüklenebilir bir "kutu" (dolu renkli zemin sayesinde
+  /// boşluklara basınca da algılanır → çok daha hassas). Parça ortada durur.
   Widget _traySlot(int index, double cellSize, double trayCell) {
     final piece = game.tray[index];
-    if (piece == null) return const SizedBox.shrink();
 
-    return Draggable<int>(
-      data: index,
-      dragAnchorStrategy: (draggable, context, position) {
-        // İşaretçi parçanın alt-orta noktasının yarım hücre altında kalsın
-        // → parça parmağın üstünde yüzer, feedback'in sol-üst köşesi
-        //   details.offset olarak gelir (grid hücresi buradan hesaplanır).
-        //   Küçük pay + tahtanın alt algılama uzantısı sayesinde en alt
-        //   satır da rahat yerleştirilir.
-        return Offset(
-            piece.cols * cellSize / 2, piece.rows * cellSize + cellSize * 0.5);
-      },
-      feedback: PieceView(piece: piece, cellSize: cellSize),
-      childWhenDragging:
-          Opacity(opacity: 0.2, child: PieceView(piece: piece, cellSize: trayCell)),
-      child: PieceView(piece: piece, cellSize: trayCell),
+    Widget tile(Widget child) => Container(
+          constraints: const BoxConstraints.expand(),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(cellSize * 0.3),
+          ),
+          alignment: Alignment.center,
+          child: child,
+        );
+
+    if (piece == null) {
+      return Padding(
+        padding: EdgeInsets.all(cellSize * 0.12),
+        child: tile(const SizedBox.shrink()),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.all(cellSize * 0.12),
+      child: Draggable<int>(
+        data: index,
+        dragAnchorStrategy: (draggable, context, position) {
+          // Parça parmağın üstünde yüzsün; feedback sol-üst köşesi details.offset
+          // olarak gelir (grid hücresi buradan hesaplanır).
+          return Offset(
+              piece.cols * cellSize / 2, piece.rows * cellSize + cellSize * 0.5);
+        },
+        feedback: PieceView(piece: piece, cellSize: cellSize),
+        childWhenDragging: tile(
+          Opacity(opacity: 0.15, child: PieceView(piece: piece, cellSize: trayCell)),
+        ),
+        child: tile(PieceView(piece: piece, cellSize: trayCell)),
+      ),
+    );
+  }
+
+  /// Patlatma/kombo anında ekranda beliren motive edici yazı.
+  Widget _comboOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _comboAnim,
+          builder: (context, _) {
+            final t = _comboAnim.value;
+            if (t <= 0 || t >= 1 || _comboText == null) {
+              return const SizedBox.shrink();
+            }
+            final appear = (t / 0.22).clamp(0.0, 1.0);
+            final disappear = ((t - 0.7) / 0.3).clamp(0.0, 1.0);
+            final scale = 0.4 + 0.9 * Curves.easeOutBack.transform(appear);
+            final opacity = 1 - disappear;
+            return Align(
+              alignment: const Alignment(0, -0.32),
+              child: Transform.translate(
+                offset: Offset(0, -40 * disappear),
+                child: Opacity(
+                  opacity: opacity.clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Text(
+                      _comboText!,
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                        shadows: [
+                          Shadow(color: Color(0xFFF15BB5), blurRadius: 18),
+                          Shadow(color: Color(0xFFFFB400), blurRadius: 30),
+                          Shadow(
+                              color: Colors.black54,
+                              blurRadius: 4,
+                              offset: Offset(0, 2)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
   Widget _gameOverOverlay() {
+    final canContinue = _canContinue;
     return Positioned.fill(
       child: Container(
         color: Colors.black.withValues(alpha: 0.7),
@@ -263,24 +357,55 @@ class _GameScreenState extends State<GameScreen> {
                   style: const TextStyle(color: Colors.white54, fontSize: 16),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: game.newGame,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4D96FF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    textStyle: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700),
+                if (canContinue) ...[
+                  _overlayButton(
+                    label: _watchingAd ? 'Yükleniyor...' : 'İzle & Devam Et',
+                    icon: Icons.ondemand_video,
+                    color: const Color(0xFF52B788),
+                    onPressed: _watchingAd ? null : _watchAndContinue,
                   ),
-                  child: const Text('Tekrar Oyna'),
-                ),
+                  const SizedBox(height: 12),
+                  _overlayButton(
+                    label: 'Hayır, Baştan',
+                    icon: Icons.refresh,
+                    color: const Color(0xFF4D96FF),
+                    onPressed: game.newGame,
+                  ),
+                ] else
+                  _overlayButton(
+                    label: 'Tekrar Oyna',
+                    icon: Icons.refresh,
+                    color: const Color(0xFF4D96FF),
+                    onPressed: game.newGame,
+                  ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _overlayButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return SizedBox(
+      width: 240,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
     );

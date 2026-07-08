@@ -39,7 +39,7 @@ class AdInterstitial {
   /// Her oyun sonunda çağrılır; 3'ün katıysa reklam gösterir.
   void notifyGameOver() {
     _gameOverCount++;
-    if (_gameOverCount % 3 != 0) {
+    if (_gameOverCount % 2 != 0) {
       _load(); // bir sonrakine hazır olsun
       return;
     }

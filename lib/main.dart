@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'game_screen.dart';
 import 'ads/ad_init.dart';
 import 'ads/ad_interstitial.dart';
+import 'ads/ad_rewarded.dart';
 import 'sound_service.dart';
 
 void main() {
@@ -12,6 +13,7 @@ void main() {
   ]);
   initAds(); // mobilde AdMob'u başlatır, web/masaüstünde no-op (await'siz)
   AdInterstitial.instance.preload(); // ilk tam ekran reklamı hazırla
+  AdRewarded.instance.preload(); // "izle & devam et" ödüllü reklamı hazırla
   SoundService.instance.init(); // ses ayarını yükle (await'siz)
   runApp(const KareKareApp());
 }
