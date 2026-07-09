@@ -35,6 +35,9 @@ class GameState extends ChangeNotifier {
   /// Bu oyunda "reklam izle & devam et" hakkı kullanıldı mı (oyun başına 1).
   bool usedContinue = false;
 
+  /// Son hamlede tahta tamamen temizlendi mi (mükemmel temizlik kutlaması).
+  bool boardCleared = false;
+
   final Random _rng = Random();
   SharedPreferences? _prefs;
   final bool _persist;
@@ -58,6 +61,7 @@ class GameState extends ChangeNotifier {
     combo = 0;
     lastMessage = null;
     usedContinue = false;
+    boardCleared = false;
     lastPlaced = [];
     lastCleared = {};
     _refillTray();
@@ -153,12 +157,20 @@ class GameState extends ChangeNotifier {
     tray[trayIndex] = null;
 
     // Dolan satır/sütunları patlat (kombo serisi + motive edici mesaj)
+    boardCleared = false;
     final lines = _clearLines();
     if (lines > 0) {
       combo++;
       // Kombo çarpanı: ardışık patlatmada skor giderek artar
       score += 10 * lines * lines * combo;
-      lastMessage = _messageFor(lines, combo);
+      // Tahta tamamen temizlendiyse: büyük bonus + mükemmel temizlik kutlaması
+      if (_isBoardEmpty()) {
+        boardCleared = true;
+        score += 300;
+        lastMessage = 'MÜKEMMEL!';
+      } else {
+        lastMessage = _messageFor(lines, combo);
+      }
     } else {
       combo = 0;
       lastMessage = null;
@@ -180,6 +192,16 @@ class GameState extends ChangeNotifier {
 
     animTick++;
     notifyListeners();
+    return true;
+  }
+
+  /// Tahta tamamen boş mu?
+  bool _isBoardEmpty() {
+    for (final row in grid) {
+      for (final c in row) {
+        if (c != null) return false;
+      }
+    }
     return true;
   }
 

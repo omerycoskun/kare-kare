@@ -45,8 +45,9 @@ void main() {
     for (int c = 0; c < kGridSize; c++) {
       expect(g.grid[4][c], isNull, reason: 'satır patlamalıydı');
     }
-    // Skor: 8 hücre yerleştirme + 1 satır*1*10 = 8 + 10 = 18
-    expect(g.score, 18);
+    // Skor: 8 hücre + 1 satır(10) + tahta tamamen temizlendi (+300 bonus).
+    expect(g.boardCleared, isTrue);
+    expect(g.score, 18 + 300);
   });
 
   test('aynı anda 2 satır patlayınca kombo çarpanı uygulanır', () {
@@ -71,8 +72,9 @@ void main() {
       expect(g.grid[0][c], isNull);
       expect(g.grid[1][c], isNull);
     }
-    // Skor: 2 hücre yerleştirme + kombo(10*2*2=40) = 42
-    expect(g.score, 42);
+    // Skor: 2 hücre + kombo(10*2*2=40) + tahta temizlendi (+300).
+    expect(g.boardCleared, isTrue);
+    expect(g.score, 42 + 300);
   });
 
   test('3 parça bitince tray yeniden dolar', () {

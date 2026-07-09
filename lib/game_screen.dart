@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'game_state.dart';
 import 'piece_widget.dart';
@@ -15,7 +17,7 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final GameState game = GameState();
   int _prevTick = 0;
   bool _prevOver = false;
@@ -25,12 +27,21 @@ class _GameScreenState extends State<GameScreen>
   late final AnimationController _comboAnim;
   String? _comboText;
 
+  // Tahta tamamen temizlenince abartılı kutlama (konfeti + parlama + yazı)
+  late final AnimationController _celebrateAnim;
+  final List<_Confetti> _confetti = [];
+  final Random _rng = Random();
+
   @override
   void initState() {
     super.initState();
     _comboAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 750),
+    );
+    _celebrateAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
     );
     game.addListener(_onGameChange);
   }
@@ -39,16 +50,40 @@ class _GameScreenState extends State<GameScreen>
   void dispose() {
     game.removeListener(_onGameChange);
     _comboAnim.dispose();
+    _celebrateAnim.dispose();
     super.dispose();
   }
 
-  /// Oyun olaylarına göre ses + kombo yazısı (game_state saf, efektler UI'da).
+  void _spawnConfetti() {
+    _confetti.clear();
+    const colors = [
+      Color(0xFFFF5A5F), Color(0xFFFFB400), Color(0xFF2EC4B6),
+      Color(0xFF4D96FF), Color(0xFF9B5DE5), Color(0xFFF15BB5),
+      Color(0xFF52B788), Color(0xFFFF8C42),
+    ];
+    for (int i = 0; i < 70; i++) {
+      _confetti.add(_Confetti(
+        angle: _rng.nextDouble() * 2 * pi,
+        speed: 140 + _rng.nextDouble() * 340,
+        color: colors[_rng.nextInt(colors.length)],
+        rot: _rng.nextDouble() * 2 * pi,
+        size: 9 + _rng.nextDouble() * 9,
+      ));
+    }
+  }
+
+  /// Oyun olaylarına göre ses + kombo/kutlama (game_state saf, efektler UI'da).
   void _onGameChange() {
     if (game.animTick != _prevTick) {
       _prevTick = game.animTick;
       SoundService.instance.place();
       if (game.lastCleared.isNotEmpty) SoundService.instance.clear();
-      if (game.lastMessage != null) {
+      if (game.boardCleared) {
+        // Tahta tamamen temiz → abartılı kutlama (kombo yazısı yerine)
+        _spawnConfetti();
+        _celebrateAnim.forward(from: 0);
+        SoundService.instance.clear();
+      } else if (game.lastMessage != null) {
         _comboText = game.lastMessage;
         _comboAnim.forward(from: 0);
       }
@@ -116,6 +151,7 @@ class _GameScreenState extends State<GameScreen>
                         ],
                       ),
                       _comboOverlay(),
+                      _celebrateOverlay(),
                       if (game.gameOver) _gameOverOverlay(),
                     ],
                   );
@@ -318,6 +354,107 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  /// Tahta tamamen temizlenince: abartılı konfeti + parlama + dev "MÜKEMMEL!".
+  Widget _celebrateOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _celebrateAnim,
+          builder: (context, _) {
+            final t = _celebrateAnim.value;
+            if (t <= 0 || t >= 1) return const SizedBox.shrink();
+            final textIn = (t / 0.35).clamp(0.0, 1.0);
+            final textOut = ((t - 0.75) / 0.25).clamp(0.0, 1.0);
+            return Stack(
+              children: [
+                // Ekran parlaması (altın radial), sönerek
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: (1 - t) * 0.45,
+                    child: const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          colors: [Color(0xFFFFE082), Colors.transparent],
+                          radius: 0.9,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Konfeti (merkezden patlar, yerçekimiyle düşer)
+                for (final c in _confetti)
+                  Align(
+                    alignment: Alignment.center,
+                    child: Transform.translate(
+                      offset: Offset(
+                        cos(c.angle) * c.speed * t,
+                        sin(c.angle) * c.speed * t + 520 * t * t,
+                      ),
+                      child: Transform.rotate(
+                        angle: c.rot + t * 8,
+                        child: Opacity(
+                          opacity: (1 - t).clamp(0.0, 1.0),
+                          child: Container(
+                            width: c.size,
+                            height: c.size,
+                            decoration: BoxDecoration(
+                              color: c.color,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Dev "MÜKEMMEL!" + alt yazı
+                Align(
+                  alignment: const Alignment(0, -0.1),
+                  child: Opacity(
+                    opacity: 1 - textOut,
+                    child: Transform.scale(
+                      scale: 0.4 + 0.9 * Curves.elasticOut.transform(textIn),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'MÜKEMMEL!',
+                            style: TextStyle(
+                              fontSize: 52,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                              shadows: [
+                                Shadow(color: Color(0xFFFFB400), blurRadius: 24),
+                                Shadow(color: Color(0xFFF15BB5), blurRadius: 40),
+                                Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 3)),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'TAHTA TEMİZ! 🎉  +300',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFFFD54F),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _gameOverOverlay() {
     final canContinue = _canContinue;
     return Positioned.fill(
@@ -410,4 +547,20 @@ class _GameScreenState extends State<GameScreen>
       ),
     );
   }
+}
+
+/// Kutlama konfetisi parçacığı.
+class _Confetti {
+  final double angle;
+  final double speed;
+  final Color color;
+  final double rot;
+  final double size;
+  const _Confetti({
+    required this.angle,
+    required this.speed,
+    required this.color,
+    required this.rot,
+    required this.size,
+  });
 }
