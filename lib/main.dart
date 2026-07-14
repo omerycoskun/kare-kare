@@ -11,11 +11,15 @@ void main() {
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-  initAds(); // mobilde AdMob'u başlatır, web/masaüstünde no-op (await'siz)
-  AdInterstitial.instance.preload(); // ilk tam ekran reklamı hazırla
-  AdRewarded.instance.preload(); // "izle & devam et" ödüllü reklamı hazırla
   SoundService.instance.init(); // ses ayarını yükle (await'siz)
   runApp(const KareKareApp());
+  // iOS ATT izin penceresi uygulama AKTİF olduğunda açılabilir. Bu yüzden
+  // ilk kare çizildikten sonra: önce izni iste, sonra reklamları başlat/önyükle.
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await initAds(); // ATT izni + AdMob init
+    AdInterstitial.instance.preload(); // ilk tam ekran reklamı hazırla
+    AdRewarded.instance.preload(); // "izle & devam et" ödüllü reklamı hazırla
+  });
 }
 
 class KareKareApp extends StatelessWidget {
