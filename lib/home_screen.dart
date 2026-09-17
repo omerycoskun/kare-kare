@@ -76,50 +76,56 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const _TitleTiles(),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'KARE KARE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 44,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 3,
+                child: Transform.scale(
+                  scale: (MediaQuery.sizeOf(context).shortestSide / 414).clamp(
+                    1.0,
+                    1.6,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const _TitleTiles(),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'KARE KARE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 44,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 3,
+                            ),
                           ),
-                        ),
-                        const Text(
-                          'Çini Bulmacası',
-                          style: TextStyle(
-                            color: Color(0xFF7FD8D0),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          const Text(
+                            'Çini Bulmacası',
+                            style: TextStyle(
+                              color: Color(0xFF7FD8D0),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 40),
-                        _MenuCard(
-                          title: 'Çini Macerası',
-                          subtitle:
-                              '$kLevelCount bölüm • ★ ${progress.totalStars}/${kLevelCount * 3}',
-                          icon: Icons.map_rounded,
-                          color: const Color(0xFF1F6FB2),
-                          onTap: () => _open(const LevelsScreen()),
-                        ),
-                        const SizedBox(height: 14),
-                        _MenuCard(
-                          title: 'Serbest Oyun',
-                          subtitle: 'Sonsuz mod • rekorunu kır',
-                          icon: Icons.all_inclusive_rounded,
-                          color: const Color(0xFF2EC4B6),
-                          onTap: () => _open(const GameScreen()),
-                        ),
-                      ],
+                          const SizedBox(height: 40),
+                          _MenuCard(
+                            title: 'Çini Macerası',
+                            subtitle:
+                                '$kLevelCount bölüm • ${progress.totalStars}/${kLevelCount * 3} yıldız',
+                            icon: Icons.map_rounded,
+                            color: const Color(0xFF1F6FB2),
+                            onTap: () => _open(const LevelsScreen()),
+                          ),
+                          const SizedBox(height: 14),
+                          _MenuCard(
+                            title: 'Serbest Oyun',
+                            subtitle: 'Sonsuz mod • rekorunu kır',
+                            icon: Icons.all_inclusive_rounded,
+                            color: const Color(0xFF2EC4B6),
+                            onTap: () => _open(const GameScreen()),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

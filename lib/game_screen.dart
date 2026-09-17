@@ -21,8 +21,7 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen>
-    with TickerProviderStateMixin {
+class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late final GameState game = GameState(level: widget.level);
   bool _prevWon = false;
   int _prevTick = 0;
@@ -63,18 +62,25 @@ class _GameScreenState extends State<GameScreen>
   void _spawnConfetti() {
     _confetti.clear();
     const colors = [
-      Color(0xFFFF5A5F), Color(0xFFFFB400), Color(0xFF2EC4B6),
-      Color(0xFF4D96FF), Color(0xFF9B5DE5), Color(0xFFF15BB5),
-      Color(0xFF52B788), Color(0xFFFF8C42),
+      Color(0xFFFF5A5F),
+      Color(0xFFFFB400),
+      Color(0xFF2EC4B6),
+      Color(0xFF4D96FF),
+      Color(0xFF9B5DE5),
+      Color(0xFFF15BB5),
+      Color(0xFF52B788),
+      Color(0xFFFF8C42),
     ];
     for (int i = 0; i < 70; i++) {
-      _confetti.add(_Confetti(
-        angle: _rng.nextDouble() * 2 * pi,
-        speed: 140 + _rng.nextDouble() * 340,
-        color: colors[_rng.nextInt(colors.length)],
-        rot: _rng.nextDouble() * 2 * pi,
-        size: 9 + _rng.nextDouble() * 9,
-      ));
+      _confetti.add(
+        _Confetti(
+          angle: _rng.nextDouble() * 2 * pi,
+          speed: 140 + _rng.nextDouble() * 340,
+          color: colors[_rng.nextInt(colors.length)],
+          rot: _rng.nextDouble() * 2 * pi,
+          size: 9 + _rng.nextDouble() * 9,
+        ),
+      );
     }
   }
 
@@ -124,9 +130,15 @@ class _GameScreenState extends State<GameScreen>
           child: LayoutBuilder(
             builder: (context, constraints) {
               final byHeight = (constraints.maxHeight - 252) / 1.625;
-              final boardSize =
-                  [width - 32, byHeight, 480.0].reduce((a, b) => a < b ? a : b)
-                      .clamp(0.0, 480.0);
+              // iPad gibi geniş ekranlarda tahta büyüsün (telefonda 480 sınırı).
+              final maxBoard = MediaQuery.sizeOf(context).shortestSide >= 600
+                  ? 700.0
+                  : 480.0;
+              final boardSize = [
+                width - 32,
+                byHeight,
+                maxBoard,
+              ].reduce((a, b) => a < b ? a : b).clamp(0.0, maxBoard);
               final cellSize = boardSize / kGridSize;
 
               return AnimatedBuilder(
@@ -178,11 +190,16 @@ class _GameScreenState extends State<GameScreen>
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white70,
+                    ),
                     tooltip: 'Geri',
                   ),
                   Text(
-                    widget.level == null ? 'Serbest Oyun' : 'Bölüm ${widget.level!.number}',
+                    widget.level == null
+                        ? 'Serbest Oyun'
+                        : 'Bölüm ${widget.level!.number}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -222,11 +239,20 @@ class _GameScreenState extends State<GameScreen>
             children: widget.level == null
                 ? [
                     _scoreBox('SKOR', game.score, const Color(0xFF4D96FF)),
-                    _scoreBox('EN İYİ', game.bestScore, const Color(0xFFFFB400)),
+                    _scoreBox(
+                      'EN İYİ',
+                      game.bestScore,
+                      const Color(0xFFFFB400),
+                    ),
                   ]
                 : [
-                    _scoreBox('HAMLE', game.movesLeft,
-                        game.movesLeft <= 3 ? const Color(0xFFFF5A5F) : const Color(0xFF2EC4B6)),
+                    _scoreBox(
+                      'HAMLE',
+                      game.movesLeft,
+                      game.movesLeft <= 3
+                          ? const Color(0xFFFF5A5F)
+                          : const Color(0xFF2EC4B6),
+                    ),
                     _scoreBox('ÇİNİ', game.ciniLeft, const Color(0xFF7FB8FF)),
                   ],
           ),
@@ -286,14 +312,14 @@ class _GameScreenState extends State<GameScreen>
     final piece = game.tray[index];
 
     Widget tile(Widget child) => Container(
-          constraints: const BoxConstraints.expand(),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(cellSize * 0.3),
-          ),
-          alignment: Alignment.center,
-          child: child,
-        );
+      constraints: const BoxConstraints.expand(),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(cellSize * 0.3),
+      ),
+      alignment: Alignment.center,
+      child: child,
+    );
 
     if (piece == null) {
       return Padding(
@@ -310,11 +336,16 @@ class _GameScreenState extends State<GameScreen>
           // Parça parmağın üstünde yüzsün; feedback sol-üst köşesi details.offset
           // olarak gelir (grid hücresi buradan hesaplanır).
           return Offset(
-              piece.cols * cellSize / 2, piece.rows * cellSize + cellSize * 0.5);
+            piece.cols * cellSize / 2,
+            piece.rows * cellSize + cellSize * 0.5,
+          );
         },
         feedback: PieceView(piece: piece, cellSize: cellSize),
         childWhenDragging: tile(
-          Opacity(opacity: 0.15, child: PieceView(piece: piece, cellSize: trayCell)),
+          Opacity(
+            opacity: 0.15,
+            child: PieceView(piece: piece, cellSize: trayCell),
+          ),
         ),
         child: tile(PieceView(piece: piece, cellSize: trayCell)),
       ),
@@ -355,9 +386,10 @@ class _GameScreenState extends State<GameScreen>
                           Shadow(color: Color(0xFFF15BB5), blurRadius: 18),
                           Shadow(color: Color(0xFFFFB400), blurRadius: 30),
                           Shadow(
-                              color: Colors.black54,
-                              blurRadius: 4,
-                              offset: Offset(0, 2)),
+                            color: Colors.black54,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
                         ],
                       ),
                     ),
@@ -441,12 +473,19 @@ class _GameScreenState extends State<GameScreen>
                               color: Colors.white,
                               letterSpacing: 1,
                               shadows: [
-                                Shadow(color: Color(0xFFFFB400), blurRadius: 24),
-                                Shadow(color: Color(0xFFF15BB5), blurRadius: 40),
                                 Shadow(
-                                    color: Colors.black54,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 3)),
+                                  color: Color(0xFFFFB400),
+                                  blurRadius: 24,
+                                ),
+                                Shadow(
+                                  color: Color(0xFFF15BB5),
+                                  blurRadius: 40,
+                                ),
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 3),
+                                ),
                               ],
                             ),
                           ),
@@ -523,14 +562,18 @@ class _GameScreenState extends State<GameScreen>
                   _overlayButton(
                     label: _watchingAd
                         ? 'Yükleniyor...'
-                        : (widget.level != null && game.movesLeft <= 0 ? 'İzle & +5 Hamle' : 'İzle & Devam Et'),
+                        : (widget.level != null && game.movesLeft <= 0
+                              ? 'İzle & +5 Hamle'
+                              : 'İzle & Devam Et'),
                     icon: Icons.ondemand_video,
                     color: const Color(0xFF52B788),
                     onPressed: _watchingAd ? null : _watchAndContinue,
                   ),
                   const SizedBox(height: 12),
                   _overlayButton(
-                    label: widget.level == null ? 'Hayır, Baştan' : 'Tekrar Dene',
+                    label: widget.level == null
+                        ? 'Hayır, Baştan'
+                        : 'Tekrar Dene',
                     icon: Icons.refresh,
                     color: const Color(0xFF4D96FF),
                     onPressed: game.newGame,
@@ -581,7 +624,11 @@ class _GameScreenState extends State<GameScreen>
               children: [
                 Text(
                   'Bölüm ${level.number} Tamam!',
-                  style: const TextStyle(color: Color(0xFF12254A), fontSize: 26, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: Color(0xFF12254A),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -593,14 +640,20 @@ class _GameScreenState extends State<GameScreen>
                         child: Icon(
                           Icons.star_rounded,
                           size: s == 2 ? 64 : 50,
-                          color: s <= stars ? const Color(0xFFFFB400) : Colors.black12,
+                          color: s <= stars
+                              ? const Color(0xFFFFB400)
+                              : Colors.black12,
                         ),
                       ),
                   ],
                 ),
                 Text(
                   'Kalan hamle: ${game.movesLeft}  •  Skor: ${game.score}',
-                  style: const TextStyle(color: Color(0xFF12254A), fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Color(0xFF12254A),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 22),
                 if (hasNext) ...[
@@ -609,7 +662,10 @@ class _GameScreenState extends State<GameScreen>
                     icon: Icons.arrow_forward_rounded,
                     color: const Color(0xFF2EC4B6),
                     onPressed: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => GameScreen(level: levelSpec(level.number + 1))),
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            GameScreen(level: levelSpec(level.number + 1)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
