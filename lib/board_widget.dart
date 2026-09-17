@@ -160,7 +160,12 @@ class _BoardWidgetState extends State<BoardWidget>
                         Positioned(
                           left: c * cellSize,
                           top: r * cellSize,
-                          child: game.grid[r][c] != null
+                          child: game.special[r * kGridSize + c] != null
+                              ? SpecialCell(
+                                  kind: game.special[r * kGridSize + c]!,
+                                  size: cellSize,
+                                )
+                              : game.grid[r][c] != null
                               ? _AnimatedPlacedCell(
                                   color: game.grid[r][c]!,
                                   size: cellSize,

@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'game_state.dart';
+import 'home_screen.dart';
+import 'levels.dart';
 import 'piece_widget.dart';
 import 'board_widget.dart';
 import 'ads/ad_banner.dart';
@@ -10,7 +12,10 @@ import 'ads/ad_rewarded.dart';
 import 'sound_service.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.level});
+
+  /// Çini Macerası bölümü; null ise Serbest oyun.
+  final LevelSpec? level;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -18,7 +23,8 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen>
     with TickerProviderStateMixin {
-  final GameState game = GameState();
+  late final GameState game = GameState(level: widget.level);
+  bool _prevWon = false;
   int _prevTick = 0;
   bool _prevOver = false;
   bool _watchingAd = false;
@@ -88,6 +94,8 @@ class _GameScreenState extends State<GameScreen>
         _comboAnim.forward(from: 0);
       }
     }
+    if (game.levelWon && !_prevWon) SoundService.instance.clear();
+    _prevWon = game.levelWon;
     if (game.gameOver && !_prevOver) {
       SoundService.instance.gameOver();
       AdInterstitial.instance.notifyGameOver(); // her 2. oyun sonunda reklam
@@ -111,14 +119,7 @@ class _GameScreenState extends State<GameScreen>
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B1035), Color(0xFF0E0A1F)],
-          ),
-        ),
+      body: CiniBackground(
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -153,6 +154,7 @@ class _GameScreenState extends State<GameScreen>
                       _comboOverlay(),
                       _celebrateOverlay(),
                       if (game.gameOver) _gameOverOverlay(),
+                      if (game.levelWon) _winOverlay(),
                     ],
                   );
                 },
@@ -166,20 +168,29 @@ class _GameScreenState extends State<GameScreen>
 
   Widget _header() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 20, 8),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Kare Kare',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70),
+                    tooltip: 'Geri',
+                  ),
+                  Text(
+                    widget.level == null ? 'Serbest Oyun' : 'Bölüm ${widget.level!.number}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
               Row(
                 children: [
@@ -208,10 +219,16 @@ class _GameScreenState extends State<GameScreen>
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _scoreBox('SKOR', game.score, const Color(0xFF4D96FF)),
-              _scoreBox('EN İYİ', game.bestScore, const Color(0xFFFFB400)),
-            ],
+            children: widget.level == null
+                ? [
+                    _scoreBox('SKOR', game.score, const Color(0xFF4D96FF)),
+                    _scoreBox('EN İYİ', game.bestScore, const Color(0xFFFFB400)),
+                  ]
+                : [
+                    _scoreBox('HAMLE', game.movesLeft,
+                        game.movesLeft <= 3 ? const Color(0xFFFF5A5F) : const Color(0xFF2EC4B6)),
+                    _scoreBox('ÇİNİ', game.ciniLeft, const Color(0xFF7FB8FF)),
+                  ],
           ),
         ],
       ),
@@ -468,7 +485,7 @@ class _GameScreenState extends State<GameScreen>
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF2A1B4D), Color(0xFF1B1035)],
+                colors: [Color(0xFF1C3566), Color(0xFF12254A)],
               ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
@@ -476,45 +493,133 @@ class _GameScreenState extends State<GameScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Oyun Bitti',
-                  style: TextStyle(
+                Text(
+                  widget.level == null
+                      ? 'Oyun Bitti'
+                      : (game.movesLeft <= 0 ? 'Hamle Bitti' : 'Yer Kalmadı'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Skor: ${game.score}',
-                  style: const TextStyle(color: Colors.white, fontSize: 20),
-                ),
-                Text(
-                  'En iyi: ${game.bestScore}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 16),
-                ),
+                if (widget.level == null) ...[
+                  Text(
+                    'Skor: ${game.score}',
+                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                  Text(
+                    'En iyi: ${game.bestScore}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 16),
+                  ),
+                ] else
+                  Text(
+                    'Kalan çini: ${game.ciniLeft}',
+                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  ),
                 const SizedBox(height: 24),
                 if (canContinue) ...[
                   _overlayButton(
-                    label: _watchingAd ? 'Yükleniyor...' : 'İzle & Devam Et',
+                    label: _watchingAd
+                        ? 'Yükleniyor...'
+                        : (widget.level != null && game.movesLeft <= 0 ? 'İzle & +5 Hamle' : 'İzle & Devam Et'),
                     icon: Icons.ondemand_video,
                     color: const Color(0xFF52B788),
                     onPressed: _watchingAd ? null : _watchAndContinue,
                   ),
                   const SizedBox(height: 12),
                   _overlayButton(
-                    label: 'Hayır, Baştan',
+                    label: widget.level == null ? 'Hayır, Baştan' : 'Tekrar Dene',
                     icon: Icons.refresh,
                     color: const Color(0xFF4D96FF),
                     onPressed: game.newGame,
                   ),
                 ] else
                   _overlayButton(
-                    label: 'Tekrar Oyna',
+                    label: widget.level == null ? 'Tekrar Oyna' : 'Tekrar Dene',
                     icon: Icons.refresh,
                     color: const Color(0xFF4D96FF),
                     onPressed: game.newGame,
                   ),
+                if (widget.level != null) ...[
+                  const SizedBox(height: 12),
+                  _overlayButton(
+                    label: 'Bölümler',
+                    icon: Icons.map_rounded,
+                    color: const Color(0xFF1F6FB2),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Bölüm kazanıldı: yıldızlar + sonraki bölüm.
+  Widget _winOverlay() {
+    final level = widget.level!;
+    final stars = game.starsEarned;
+    final hasNext = level.number < kLevelCount;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.6),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 36),
+            padding: const EdgeInsets.all(26),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F8FF),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFF1F6FB2), width: 4),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Bölüm ${level.number} Tamam!',
+                  style: const TextStyle(color: Color(0xFF12254A), fontSize: 26, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var s = 1; s <= 3; s++)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: s == 2 ? 14 : 0),
+                        child: Icon(
+                          Icons.star_rounded,
+                          size: s == 2 ? 64 : 50,
+                          color: s <= stars ? const Color(0xFFFFB400) : Colors.black12,
+                        ),
+                      ),
+                  ],
+                ),
+                Text(
+                  'Kalan hamle: ${game.movesLeft}  •  Skor: ${game.score}',
+                  style: const TextStyle(color: Color(0xFF12254A), fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 22),
+                if (hasNext) ...[
+                  _overlayButton(
+                    label: 'Sonraki Bölüm',
+                    icon: Icons.arrow_forward_rounded,
+                    color: const Color(0xFF2EC4B6),
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => GameScreen(level: levelSpec(level.number + 1))),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _overlayButton(
+                  label: 'Bölümler',
+                  icon: Icons.map_rounded,
+                  color: const Color(0xFF1F6FB2),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
               ],
             ),
           ),

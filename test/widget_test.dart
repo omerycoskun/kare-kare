@@ -7,7 +7,9 @@ void main() {
     await tester.pumpWidget(const KareKareApp());
     await tester.pump();
 
-    // Başlık ekranda görünmeli
-    expect(find.text('Kare Kare'), findsOneWidget);
+    // Ana menü: başlık ve iki mod görünmeli
+    expect(find.text('KARE KARE'), findsOneWidget);
+    expect(find.text('Çini Macerası'), findsOneWidget);
+    expect(find.text('Serbest Oyun'), findsOneWidget);
   });
 }

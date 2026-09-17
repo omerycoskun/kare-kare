@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'game_screen.dart';
+import 'home_screen.dart';
 import 'ads/ad_init.dart';
 import 'ads/ad_interstitial.dart';
 import 'ads/ad_rewarded.dart';
@@ -32,12 +32,12 @@ class KareKareApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF9B5DE5),
+          seedColor: const Color(0xFF1F6FB2),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      home: const GameScreen(),
+      home: const HomeScreen(),
     );
   }
 }

@@ -3,9 +3,9 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/app_icon.png"
   remove_alpha_ios: true
-  background_color_ios: "#F5F7FA"
+  background_color_ios: "#12254A"
   web:
     generate: true
     image_path: "assets/icon/app_icon.png"
-    background_color: "#F5F7FA"
-    theme_color: "#1B1035"
+    background_color: "#12254A"
+    theme_color: "#12254A"
